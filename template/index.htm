@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            font-family: 'Roboto';
+            font-weight: normal;
+        }
+
+        h1 {
+            margin-bottom: 50px;
+        }
+
+        input {
+            padding: 10px;
+            border: solid 3px #dfdfdf;
+            margin: 8px 0;
+            flex: 100%;
+        }
+
+        input[type="submit"] {
+            border: none;
+            flex: 100px 0 0;
+            cursor: pointer;
+            outline: none;
+        }
+
+        #app {
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        .x-restaurant {
+            margin-bottom: 50px;
+        }
+
+        .tables-container {
+            border: solid 3px purple;
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tables-container .x-table {
+            border: solid 3px #d6c7eb;
+            width: 120px;
+            height: 120px;
+            margin: 12px;
+            color: #6b3fb9;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .tables-container .x-table.occupied {
+            background-color: #faf4fb;
+        }
+
+        .tables-container .x-table > div {
+            margin-top: 25%;
+        }
+
+        .tables-container .x-table.occupied > div {
+            margin-top: 10%;
+        }
+
+        .tables-container .x-table > div div {
+            margin: 10px 0;
+        }
+
+        .evict-table {
+            background-color: #e2c1e8;
+            padding: 5px 30px;
+            display: inline-block;
+            margin-top: 8px;
+            color: #673ab7;
+            text-decoration: none;
+        }
+
+        .restaurant-form {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .restaurant-form .errors {
+            flex: auto;
+            color: red;
+        }
+
+    </style>
+
+    <title>
+        Restaurant Manager
+    </title>
+</head>
+<body>
+
+<div id="app">
+    <h1>Restaurant Manager</h1>
+    <h2>Table Overview</h2>
+    <x-restaurant></x-restaurant>
+    <h2>New Party</h2>
+    <p>Fill the following form to allocate a table to a party that is waiting to be seated</p>
+    <form class="restaurant-form" @submit.prevent="onSubmit">
+        <div class="errors" v-if="errors.length">
+            <p>Please correct the following error(s):</p>
+            <ul>
+                <li v-for="error in errors">{{ error }}</li>
+            </ul>
+        </div>
+
+        <input type="number" min="0" placeholder="Number of People (non-zero positive integer)" class="peopleNumber" v-model.number="peopleNumber">
+        <input type="number" min="0" placeholder="Duration of stay in seconds (positive number)" class="duration" v-model.number="duration">
+        <input type="text" placeholder="Fuss message if evicted (text)" class="fussMessage" v-model="fussMessage">
+        <input type="submit" value="Add">
+    </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+<script>
+
+    const eventHandler = new Vue()
+
+    Vue.component('x-restaurant', {
+        props: {},
+        template: `
+          <div class="x-restaurant">
+          <x-table></x-table>
+          </div>
+        `,
+        data() {
+            return {
+                open: true
+            }
+        },
+        methods: {
+            save(tableReservation) {
+                //save reservations in localStorage
+                localStorage.setItem("reservations", JSON.stringify(tableReservation))
+            },
+
+            load() {
+                //load saved reservations from localStorage
+                let tableReservation = JSON.parse(localStorage.getItem("reservations")),
+                    i = 0
+
+                if (typeof tableReservation !== "undefined" && tableReservation !== null) {
+                    for (i; i < tableReservation.length; i++) {
+                        let tableReservationLoad = {
+                            peopleNumber: tableReservation[i].peopleNumber,
+                            duration: tableReservation[i].duration,
+                            fussMessage: tableReservation[i].fussMessage
+                        }
+                        eventHandler.$emit('reservation-submitted', tableReservationLoad)
+                    }
+                }
+            },
+        },
+        mounted() {
+            if (this.open) {
+                //load saved reservations
+                this.load()
+            }
+
+            eventHandler.$on('reservations-updated', tableReservation => {
+                // catch reservations-updated event
+                this.save(tableReservation)
+            })
+        },
+        computed: {},
+    })
+
+    Vue.component('x-table', {
+        props: {},
+        template: `
+          <div class="tables-container">
+          <div class="x-table" :class="{ occupied: !table.available}" v-for="(table, index) in tables" :key="table.id">
+            <div v-show="table.available">
+              <div>Table Available</div>
+              <div>(Capacity = {{ table.capacity }})</div>
+            </div>
+            <div v-show="!table.available">
+              <div>Occupied by {{ table.peopleNumber }}</div>
+              <div>(Free in {{ table.duration }})</div>
+              <div><a class="evict-table" @click="evictTable(table.id)" href="javascript:void(0)">Evict</a></div>
+            </div>
+          </div>
+          </div>
+        `,
+        data() {
+            return {
+                tables: [
+                    {
+                        id: 0,
+                        capacity: 10,
+                        available: true,
+                        peopleNumber: 0,
+                        duration: 0,
+                        fussMessage: ""
+                    },
+                    {
+                        id: 1,
+                        capacity: 8,
+                        available: true,
+                        peopleNumber: 0,
+                        duration: 0,
+                        fussMessage: ""
+                    },
+                    {
+                        id: 2,
+                        capacity: 10,
+                        available: true,
+                        peopleNumber: 0,
+                        duration: 0,
+                        fussMessage: ""
+                    },
+                    {
+                        id: 3,
+                        capacity: 6,
+                        available: true,
+                        peopleNumber: 0,
+                        duration: 0,
+                        fussMessage: ""
+                    },
+                    {
+                        id: 4,
+                        capacity: 2,
+                        available: true,
+                        peopleNumber: 0,
+                        duration: 0,
+                        fussMessage: ""
+                    },
+                    {
+                        id: 5,
+                        capacity: 6,
+                        available: true,
+                        peopleNumber: 0,
+                        duration: 0,
+                        fussMessage: ""
+                    },
+                    {
+                        id: 6,
+                        capacity: 4,
+                        available: true,
+                        peopleNumber: 0,
+                        duration: 0,
+                        fussMessage: ""
+                    },
+                    {
+                        id: 7,
+                        capacity: 12,
+                        available: true,
+                        peopleNumber: 0,
+                        duration: 0,
+                        fussMessage: ""
+                    },
+                ],
+                reservations: []
+            }
+        },
+        methods: {
+            reserveTable(tableReservation) {
+                //reserve a table
+
+                let peopleNumber = tableReservation.peopleNumber,
+                    duration = tableReservation.duration,
+                    fussMessage = tableReservation.fussMessage,
+                    reserved = false,
+                    availableTables = [],
+                    i = 0
+
+                //get all available tables
+                for (i; i < this.tables.length; i++) {
+                    if (this.tables[i].available) {
+                        if (peopleNumber <= this.tables[i].capacity) {
+                            availableTables.push({
+                                peopleNumberDiff: this.tables[i].capacity - peopleNumber,
+                                id: i
+                            })
+                        }
+                    }
+                }
+
+                if (availableTables.length) {
+                    //check the most suitable table depending on people number
+                    availableTables.sort(function (a, b) {
+                        return a.peopleNumberDiff - b.peopleNumberDiff
+                    })
+
+                    //reserve the table
+                    let id = availableTables[0].id
+                    this.tables[id].peopleNumber = peopleNumber
+                    this.tables[id].fussMessage = fussMessage
+                    this.tables[id].available = false
+                    this.updateDuration(id, duration)
+
+                    // update reservations array when a table reserved
+                    let tableReservation = {
+                        id: id,
+                        peopleNumber: peopleNumber,
+                        duration: duration,
+                        fussMessage: fussMessage
+                    }
+                    this.reservations.push(tableReservation)
+                    eventHandler.$emit('reservations-updated', this.reservations)
+
+                    reserved = true
+                    return true
+                }
+
+                if (!reserved) {
+                    //there are no available table
+                    alert('There are no available table for this people number!')
+                    return false
+                }
+            },
+
+            updateDuration(id, duration) {
+                // start the duration
+                let counter
+
+                if (duration <= 0) {
+                    //reset the table status
+                    this.tables[id].peopleNumber = 0
+                    this.tables[id].duration = 0
+                    this.tables[id].fussMessage = ""
+                    this.tables[id].available = true
+
+                    // update reservations array when duration finish
+                    this.updateReservations(id)
+
+                    clearTimeout(counter)
+                    return
+
+                } else {
+                    //continue updating the duration every one second
+                    setTimeout(function () {
+                        counter = this.updateDuration(id, duration)
+                    }.bind(this), 1000)
+                }
+
+                //update the duration
+                duration--
+                duration = Number(duration)
+                let h = Math.floor(duration / 3600),
+                    m = Math.floor(duration % 3600 / 60),
+                    s = Math.floor(duration % 3600 % 60)
+
+                this.tables[id].duration = h ? h + ":" + m + ":" + s : m + ":" + s
+            },
+
+            evictTable(id) {
+                // evict a table
+                alert(this.tables[id].fussMessage)
+
+                this.tables[id].peopleNumber = 0
+                this.tables[id].duration = 0
+                this.tables[id].fussMessage = ""
+                this.tables[id].available = true
+
+                // update reservations array when evict a table
+                this.updateReservations(id)
+            },
+
+            updateReservations(id) {
+                let i = 0
+                for (i; i < this.reservations.length; i++) {
+                    if (this.reservations[i].id === id) {
+                        this.reservations.splice(i, 1)
+                    }
+                }
+                eventHandler.$emit('reservations-updated', this.reservations)
+            },
+
+            async untilAvailable(id) {
+                return new Promise(resolve => {
+                    setTimeout(function () {
+                        resolve('resolved');
+                        if (this.tables[id].available) {
+                            alert("Table #(" + id + ") is available now!")
+                        }
+                    }.bind(this), 1000)
+                })
+
+                //const untilAvailable = await this.untilAvailable(3)
+            },
+
+            async awaitTable(peopleNumber) {
+                let tableReservation = {
+                    peopleNumber: peopleNumber,
+                    duration: 1,
+                    fussMessage: ""
+                }
+
+                return new Promise(resolve => {
+                    setTimeout(function () {
+                        resolve('resolved');
+                        this.reserveTable(tableReservation);
+                        alert("Table is available now for " + peopleNumber + " people!")
+                    }.bind(this), 1000)
+                })
+
+                //const awaitTable = await this.awaitTable(5)
+            }
+
+        },
+        mounted() {
+            eventHandler.$on('reservation-submitted', tableReservation => {
+                // catch reservation-submitted event
+                this.reserveTable(tableReservation)
+            })
+        },
+        computed: {},
+    })
+
+    const app = new Vue({
+        el: '#app',
+        data: {
+            peopleNumber: null,
+            duration: null,
+            fussMessage: null,
+            errors: []
+        },
+        methods: {
+            onSubmit() {
+                // process the data when submit "New Party" form
+
+                this.errors = []
+                // validate the input fields
+                if (this.peopleNumber && this.duration && this.fussMessage) {
+                    // submit the form
+                    let tableReservation = {
+                        peopleNumber: this.peopleNumber,
+                        duration: this.duration,
+                        fussMessage: this.fussMessage
+                    }
+                    eventHandler.$emit('reservation-submitted', tableReservation)
+
+                    this.peopleNumber = null
+                    this.duration = null
+                    this.fussMessage = null
+                } else {
+                    // fill errors array with the validation errors
+                    if (!this.peopleNumber) this.errors.push("People number is required.")
+                    if (!this.duration) this.errors.push("Duration is required.")
+                    if (!this.fussMessage) this.errors.push("Fuss message is required.")
+                }
+            }
+        },
+        computed: {},
+    })
+
+</script>
+</body>
+</html>
